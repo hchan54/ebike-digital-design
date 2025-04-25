@@ -51,7 +51,7 @@ module desiredDrive(avg_torque, cadence, not_pedaling, incline, scale, target_cu
                         torque_pos * incline_lim * cadence_factor * scale;
 
     // assign target curr to 12'bFFF if any bits from 29 to 27 are set, other wise set it to assit_prod bits 26 to 15
-    assign target_curr = (assist_prod[29:27]) ? 12'hFFF :
+    assign target_curr = (|assist_prod[29:27]) ? 12'hFFF :
                         assist_prod[26:15];
 
 endmodule
