@@ -7,7 +7,7 @@ module sensorCondition(clk, rst_n, torque, cadence_raw, curr, incline, scale, ba
     output logic not_pedaling, TX;
     output logic [12:0] error;
 
-    parameter FAST_SIM = 1'b1;
+    parameter FAST_SIM = 1'b0;
 
     logic cadence_filt, cadence_rise;
     logic [7:0] cadence_per;
@@ -25,12 +25,19 @@ module sensorCondition(clk, rst_n, torque, cadence_raw, curr, incline, scale, ba
     logic cnt_full;
     logic [11:0] avg_curr, avg_torque;
 
+    localparam LOW_BATT_THRES = 12'hA98;
+
     logic pedaling_resumes;     //Asserted if a falling edge on not_pedaling
     logic pedalingflop1out, pedalingflop2out;      //Intermediate flop signals for not_pedaling edge detection
+    logic [11:0] target_curr;
+    
     //Instantiating cadence duts
-    cadence_filt cadence1(.clk(clk), .rst_n(rst_n), .cadence(cadence_raw), .cadence_filt(cadence_filt), .cadence_rise(cadence_rise));
+    cadence_filt #(.FAST_SIM (FAST_SIM)) cadence1(.clk(clk), .rst_n(rst_n), .cadence(cadence_raw), .cadence_filt(cadence_filt), .cadence_rise(cadence_rise));
     cadence_meas meas1(.clk(clk), .rst_n(rst_n), .cadence_filt(cadence_filt), .cadence_per(cadence_per), .not_pedaling(not_pedaling));
     cadence_LU LU1(.cadence_per(cadence_per), .cadence(cadence));
+    desiredDrive drive1(.avg_torque(avg_torque), .cadence(cadence), .not_pedaling(not_pedaling), .incline(incline), .scale(scale), .target_curr(target_curr));
+    telemetry uart1 (.batt_v(batt), .avg_curr(avg_curr), .avg_torque(avg_torque), .clk(clk), .rst_n(rst_n), .TX(TX));
+    
     always_comb begin
         pedaling_resumes = ~pedalingflop1out & pedalingflop2out; //Negative edge detecting
         //exponential average for curr
@@ -45,6 +52,12 @@ module sensorCondition(clk, rst_n, torque, cadence_raw, curr, incline, scale, ba
         muxOutTorque = (pedaling_resumes) ? ({1'b0, torque, 4'h0}) :    //If pedaling resumes, putting base value
         ((cadence_rise) ? (muxInTorque) : (accum_torque));    //Choosing new sample or old accum based on cadence rise
         avg_torque = accum_torque[16:5];
+
+        // set the error equal to target_curr - avg_curr, sign extend to 13 bits
+        // if battery < LOW_BATT_THRES, set error to 0
+        // if not_pedaling, set error to 0
+        error = ((batt < LOW_BATT_THRES) || (not_pedaling)) ? 13'b0 : {target_curr[11], target_curr} - {avg_curr[11], avg_curr};
+
     end
     
     
