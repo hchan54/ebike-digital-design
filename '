@@ -1,0 +1,52 @@
+# read in files and set top level design
+read_file -format sverilog { PB_intf.sv telemetry.sv UART_tx.sv A2D_intf.sv brushless.sv cadence_filt.sv cadence_meas.sv eBike.sv inert_intf.sv inertial_integrator.sv mtr_drv.sv nonoverlap.sv PB_release.sv PID.sv PWM.sv reset_synch.sv sensorCondition.sv SPI_ADC128S.sv SPI_mnrch.sv}
+
+# set current design to eBike 
+set current_design eBike
+
+# set clock signal 400 MHz and set don't touch
+create_clock -name "clk" -period 2.5 -waveform {0 1} {clk}
+set_dont_touch_network [find port clk]
+
+# create pointer to all inputs besides clock
+set prim_inputs [remove_from_collection [all_inputs] [find port clk]]
+
+# 0.3 ns delay to all inputs and set source driver
+set_input_delay -clock clk 0.3 $prim_inputs 
+set_driving_cell -lib_cell NAND2X1_LVT -library saed32lvt_tt0p85v25c $prim_inputs 
+
+# make reset drive very strongly
+set_drive 0.001 rst_n
+
+# 0.5 ns delay to all outputs and load of outputs
+set_output_delay -clock clk 0.5 [all_outputs]
+# set output load to 50fF
+set_load 50 [all_outputs]  
+
+# wire load model for parasitic estimation
+set_wire_load_model -name 16000 -library saed32lvt_tt0p85v25c 
+# max transition for hot electrons
+set_max_transition 0.20 [current_design] 
+
+# first compile
+compile -map_effort low
+check_design 
+
+# set clock uncertainty to .15 ns 
+set_clock_uncertainty 0.15 clk
+
+# flatten hierarchy and recompile
+ungroup -all -flatten
+compile -map_effort medium
+
+# produce reports on timing and area
+report_timing -path full -delay min -nworst 3
+report_timing -path full -delay max -nworst 3
+
+report_area > eBike_area.txt
+
+# write out the netlist
+write -format verilog eBike -output eBike.vg
+
+
+
