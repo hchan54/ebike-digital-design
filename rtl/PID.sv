@@ -12,7 +12,7 @@ module PID(clk, rst_n, drv_mag, error, not_pedaling);
 
     /// clock logic
     logic [19:0] cnt;
-    logic        cnt_full;
+    logic cnt_full;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n)

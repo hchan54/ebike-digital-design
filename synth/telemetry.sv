@@ -21,11 +21,11 @@ module telemetry(batt_v, avg_curr, avg_torque, clk, rst_n, TX);
 	// flip flop so the state machine executes 47.68 times per second
 	always_ff @(posedge clk or negedge rst_n) begin
         	if (!rst_n)
-            		counter <= 0;   // Reset counter
+            	counter <= 0;   // Reset counter
         	else if (counter == max) // When counter reaches max (1,048,576 - 1)
-            		counter <= 0;
+            	counter <= 0;
         	else
-            		counter <= counter + 1;
+            	counter <= counter + 1;
     	end
 	
 	// start the sending when the counter reaches the max
