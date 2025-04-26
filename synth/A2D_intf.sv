@@ -99,16 +99,13 @@ module A2D_intf(clk, rst_n, batt, curr, brake, torque, SS_n, SCLK, MOSI, MISO);
     // assign the cmd to the concatenation of channel and padding
     assign cmd = {2'b00, channel, 11'h000};
 
-
-    // always block for 14 bit counter
     always_ff @(posedge clk, negedge rst_n) begin
-        if (!rst_n) 
-            cnt <= 0;
-        else 
-            cnt <= cnt + 1;
+        if (!rst_n)
+            cnt <= 0; // reload
+        else
+            cnt <= cnt + 1'b1; 
     end
 
-    // start a round of conversions when counter overflows
     assign start = &cnt;
 
     // flip flop for the battery

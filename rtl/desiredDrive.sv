@@ -41,9 +41,11 @@ module desiredDrive(avg_torque, cadence, not_pedaling, incline, scale, target_cu
     // create new signal called torque_pos that is N-1 of torque off
     // if torque off is negative set it to zero otherwise set it to the lower N-1 bits of torque off
     logic[11:0] torque_pos;
-    assign torque_pos = (torque_off[12]) ? 11'd0 :  
-                        torque_off[11:0];
+    assign torque_pos = (torque_off[12]) ? 11'd0 : torque_off[11:0];
 
+
+    //TODO: OPTIMIZE
+    
     // assign assist_prod to be the product of torque_pos, incline_lim, cadence_factor, and scale
     // it should be 30 becasue the length of torque_pos + incline_lim + cadence_factor + scale is 30 bits long
     logic[29:0] assist_prod;
