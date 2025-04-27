@@ -1,53 +1,54 @@
-# read in files and set top level design
-read_file -format sverilog { PB_intf.sv telemetry.sv UART_tx.sv A2D_intf.sv brushless.sv cadence_filt.sv cadence_LU.sv cadence_meas.sv inert_intf.sv inertial_integrator.sv mtr_drv.sv nonoverlap.sv PB_release.sv PID.sv PWM.sv reset_synch.sv sensorCondition.sv SPI_mnrch.sv desiredDrive.sv incline_sat.sv eBike.sv}
+# optimize ff to multibit ff, allow retiming
+set_app_var compile_enable_multibit true
+set_app_var compile_register_retiming true
+set_app_var hdlin_sv_enable_rtl_sa true
 
-# set current design to eBike 
-set current_design eBike
+# read files and set top level design
+read_file -format sverilog { PB_intf.sv telemetry.sv UART_tx.sv A2D_intf.sv brushless.sv cadence_filt.sv cadence_LU.sv cadence_meas.sv inert_intf.sv inertial_integrator.sv mtr_drv.sv nonoverlap.sv PB_release.sv PID.sv PWM.sv reset_synch.sv sensorCondition.sv SPI_mnrch.sv desiredDrive.sv incline_sat.sv eBike.sv }
 
-# set clock signal 400 MHz and set don't touch
-create_clock -name "clk" -period 2.5 -waveform {0 1} {clk}
-set_dont_touch_network [find port clk]
+# build a generic netlist and bind to top level design
+elaborate eBike
+link
+current_design eBike
 
-# set clock uncertainty to .15 ns 
-set_clock_uncertainty 0.15 clk
+# enable design-specific helpers
+set_structure true
+set_fix_multiple_port_nets -all -buffer_constants
 
-# create pointer to all inputs besides clock
-set prim_inputs [remove_from_collection [all_inputs] [find port clk]]
+# clock contraints: freq 400 Mhz
+create_clock  -name clk -period 2.5  [get_ports clk]
+set_clock_uncertainty 0.15  [get_clocks clk]
 
-# 0.3 ns delay to all inputs and set source driver
-set_input_delay -clock clk 0.3 $prim_inputs 
-set_driving_cell -lib_cell NAND2X1_LVT -library saed32lvt_tt0p85v25c $prim_inputs 
+# input and output delay constraints
+set nonclk_inps [remove_from_collection [all_inputs] [get_ports clk]]
 
-# make reset drive very strongly
-set_drive 0.001 rst_n
+set_input_delay  0.30 -clock clk $nonclk_inps
+set_driving_cell -lib_cell NAND2X2_LVT -library saed32lvt_tt0p85v25c $nonclk_inps
 
-# 0.5 ns delay to all outputs and load of outputs
-set_output_delay -clock clk 0.5 [all_outputs]
-set_load 50 [all_outputs] 
+set_output_delay 0.50 -clock clk [all_outputs]
+set_load 50 [all_outputs] ;# 50 fF
 
-# wire load model for parasitic estimation
-set_wire_load_model -name 16000 -library saed32lvt_tt0p85v25c 
+set_max_transition 0.20 [current_design]
+set_wire_load_model -name 16000 -library saed32lvt_tt0p85v25c
 
-# max transition for hot electrons
-set_max_transition 0.20 [current_design] 
+compile -map_effort high -area_effort medium -gate_clock
 
-# first compile
-compile -map_effort low
-check_design
-
-# flatten hierarchy and recompile
+# flatten and recompile design
 ungroup -all -flatten
-compile -map_effort medium
+set_optimize_registers true
+compile -incremental -area_effort high
 
-# produce reports on timing and area
-report_timing -path full -delay min -nworst 3
-report_timing -path full -delay max -nworst 3
+# optimize netlist area
+optimize_netlist -area
 
-report_area > eBike_area.txt
+# fix any hold time violations
+set_fix_hold [get_clocks clk]
+compile -incremental -only_hold_time
 
-# write out the netlist
-write -format verilog eBike -output eBike.vg
+# area and timing reports
+report_timing -delay max -nworst 5
+report_timing -delay min -nworst 5
+report_area > ebike_area.txt
 
-
-
-
+write -format verilog -output ebike.vg
+write_sdc ebike.sdc
