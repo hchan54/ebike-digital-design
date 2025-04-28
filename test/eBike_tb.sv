@@ -90,6 +90,7 @@ module eBike_tb();
     YAW_RT   = 0;
     clr_rdy  = 0;
     max_curr = 0;
+    cadence = 0;
 
     // reset sequence
     reset_dut();
@@ -110,7 +111,7 @@ module eBike_tb();
     // grab some UART bytes for simple coverage
     repeat (16) uart_get_byte;
 
-    // self-checks (no macros)
+    // self-checks
     if (uart_cnt < 10) begin
       $error("UART produced only %0d byte(s)", uart_cnt);
       error_cnt++;
@@ -140,6 +141,5 @@ module eBike_tb();
   ///////////////////////////////////////////
   // Block for cadence signal generation? //
   /////////////////////////////////////////
-  // cadence generation is handled by cadence_pulse task
 
 endmodule
