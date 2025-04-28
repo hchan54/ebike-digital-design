@@ -6,7 +6,7 @@ task automatic reset_dut (input int cycles = 10);
   $display("[%0t] **Reset released**", $time);
 endtask
 
-//  Toggle assist?mode push?button for one clock
+//  Toggle assist? mode push? button for one clock
 task automatic press_toggle_mode;
   tgglMd <= 1;
   @(posedge clk);
@@ -30,10 +30,14 @@ endtask
 
 //  Generate one cadence pulse 
 //  (Directly drives the cadence logic line; avoids force/release.)
+localparam int HI_CYCLES  = FAST_SIM ? 5_000 : 50_000; // 0.1 ms vs 1 ms
+localparam int LO_CYCLES  = HI_CYCLES;                 // symmetric
+
 task automatic cadence_pulse;
-  cadence <= 1;
-  repeat (50_000) @(posedge clk);
-  cadence <= 0;
+  cadence = 1;
+  repeat (HI_CYCLES) @(posedge clk);
+  cadence = 0;
+  repeat (LO_CYCLES) @(posedge clk);
 endtask
 
 //  Wait for a UART byte, log it, and clear the ready flag
