@@ -157,6 +157,7 @@ module inert_intf(clk, rst_n, INT, SS_n, SCLK, MOSI, MISO, incline, vld);
         AZ = {H_AZ_ff, L_AZ_ff};
     end
 
+    // delay drive to valid signal 
     always_ff @(posedge clk, negedge rst_n) begin 
         if (!rst_n) begin
             spi1_vld <= 0;
