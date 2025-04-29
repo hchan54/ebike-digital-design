@@ -1,104 +1,128 @@
-`default_nettype none;
-// this module iomplements a SPI tranceiver
-module SPI_mnrch(clk, rst_n, SS_n, SCLK, MOSI, MISO, snd, cmd, done, resp);
-	// declare input and output signals
-	input logic clk, rst_n, MISO, snd;
-	input logic [15:0]cmd;
-	output logic done, SS_n, SCLK, MOSI;
-	output logic [15:0]resp;
+`default_nettype none
+module spi_mnrch(clk, rst_n, SS_n, SCLK, MOSI, MISO, snd, cmd, done, resp);
+    
+    input logic clk, rst_n, MISO, snd;
+    input logic [15:0] cmd;
+    output logic SS_n, SCLK, MOSI, done;
+    output logic [15:0] resp;
 
-	// declare internal signals
-	logic [4:0] SCLK_div, bit_cntr;
-	logic done16, shft, full, ld_SCLK, init, set_done;
-	logic [15:0]shft_reg;
+    logic [4:0] SCLK_div, bit_cntr; 
 
-	// define an enum for states
-	typedef enum reg [1:0] {IDLE, SHIFT, DONE} state_t;
-	state_t state, nxt_state;
+    logic [15:0] shft_reg;  //Shift register
 
-	// state machine reset is IDLE state
-	always_ff @(posedge clk, negedge rst_n) begin
-		if (!rst_n) state <= IDLE;
-		else state <= nxt_state;
-	end
+    logic init, shft, ld_SCLK, full, done16, set_done;   //SM signals
+     
+    typedef enum reg [1:0] {IDLE, SHFT, DONE} state_t;  //Machine has an idle state, a state for shifting all the bits, then the done state
 
-	// state transition logic
-	always_comb begin
-		// set default outputs
-		ld_SCLK = 0;
-		init = 0;
-		set_done = 0;
-		nxt_state = state;
-		
-		case(state)
-			// shift state, transition if 16 bits have been shifted
-			SHIFT: if (done16)
-				nxt_state = DONE;
-			
-			// done state, transition when shift reg is full
-			DONE: if (full) begin
-				set_done = 1'b1;
-				nxt_state = IDLE;
+    state_t state, nxt_state;
+
+    always_ff @(posedge clk, negedge rst_n) begin   //State transition sequential logic
+        if(!rst_n) begin
+            state <= IDLE;
+        end
+        else begin
+            state <= nxt_state;
+        end
+    end
+
+    always_comb begin
+        ld_SCLK = 1'b0;
+        init = 1'b0;
+        set_done = 1'b0;
+        nxt_state = state;
+        case (state)
+            SHFT:   //State where we wait until all shifting has been done
+            if (done16) begin
+                nxt_state = DONE;
+            end
+
+            DONE:       //State after shifting in 16 bits, waiting for SCLK_div to be full to move on
+            if (full) begin
+                set_done = 1'b1;
+                nxt_state = IDLE;
 				ld_SCLK = 1'b1;
-			end
+            end
+            
+            default:    //Starting state where we wait for snd to be asserted to begin transaction
+            if (snd) begin
+                init = 1'b1;
+                nxt_state = SHFT;
+            end
+            else 
+                ld_SCLK = 1'b1;
+        endcase
+    end
 
-			// default is IDLE state, wait for snd
-			default: if (snd) begin
-				init = 1'b1;
-				nxt_state = SHIFT;
-			end
-			else
-				ld_SCLK = 1'b1;
-		endcase
-	end
+    always_ff @(posedge clk, negedge rst_n) begin   //SS_n flop
+        if(!rst_n) begin    //Presetting SS_n on reset
+            SS_n <= 1'b1;
+        end
+        else if (init) begin    //When the transaction starts, setting SS_n low
+            SS_n <= 1'b0;
+        end
+        else if (set_done)begin  //Setting SS_n back high when transaction finishes
+            SS_n <= 1'b1;
+        end
+    end
 
-	// shift register
-	always_ff @(posedge clk, negedge rst_n) begin
-		if (!rst_n) shft_reg <= 16'b0;
-		else if (init) shft_reg <= cmd;
-		else if (shft) shft_reg <= {shft_reg[14:0], MISO};
-	end
+    always_ff @(posedge clk, negedge rst_n) begin   //done flop
+        if(!rst_n) begin   
+            done <= 1'b0;
+        end
+        else if(init) begin //If a new transaction starts resetting done
+            done <= 1'b0;
+        end
+        else if (set_done) begin  //Setting done high when transaction finishes
+            done <= 1'b1;
+        end
+    end
 
-	// shift bit counter
-	always_ff @(posedge clk, negedge rst_n) begin
-		if (!rst_n) bit_cntr <= 5'b0;
-		else if (init) bit_cntr <= 5'b0;
-		else if (shft) bit_cntr <= bit_cntr + 1;
-	end
+    always_comb begin
+        resp = shft_reg;
+        SCLK = SCLK_div[4];
+        MOSI = shft_reg[15];
+        full = &SCLK_div;    //Full if every bit is a 1
+        
+        shft = (SCLK_div == 5'b10001) ? 1'b1 : 1'b0;    //shifting if SCLK_div is 10001
 
-	// SCLK is raised when counter reaches 32, so SCLK is 1/32 of clk
-	assign SCLK = SCLK_div[4];
-	// shift signal to the MOSI-MISO shift register
-	assign shft = (SCLK_div == 5'b10001);
-	// SCLK counter has all bits full
-	assign full = (&SCLK_div);
-	// all bits shifted in
-	assign done16 = bit_cntr[4];
-	// MOSI is MSB of shift_reg
-	assign MOSI = shft_reg[15];
-	// resp is the result of the shift reg
-	assign resp = shft_reg;
-	
-	// SCLK counter
-	always @(posedge clk, negedge rst_n) begin
-		if (!rst_n) SCLK_div <= 5'b0;
-		else if (ld_SCLK) SCLK_div <= 5'b10111;
-		else SCLK_div <= SCLK_div + 1;
-	end
+        done16 = bit_cntr[4]; //Asserting done16 if we've shifted out all bits 
+        
+    end
 
-	// SS_n FF, preset
-	always @(posedge clk, negedge rst_n) begin
-		if (!rst_n) SS_n <= 1'b1;
-		else if (init) SS_n <= 1'b0;
-		else if (set_done) SS_n <= 1'b1;
-	end
+    always_ff @(posedge clk, negedge rst_n) begin  //Shift register
+        if (!rst_n) begin
+            shft_reg <= 16'b0;
+        end
+        else if(init) begin
+            shft_reg <= cmd;
+        end
+        else if(shft) begin
+            shft_reg <= {shft_reg[14:0],MISO};
+        end
+    end
 
-	// done FF, reset
-	always @(posedge clk, negedge rst_n) begin
-		if (!rst_n) done <= 1'b0;
-		else if (init) done <= 1'b0;
-		else if (set_done) done <= 1'b1;
-	end
+    always_ff @(posedge clk, negedge rst_n) begin   //SCLK_div counter flop
+        if (!rst_n) begin
+            SCLK_div <= 5'b0;
+        end
+        else if (ld_SCLK) begin
+            SCLK_div <= 5'b10111;
+        end
+        else begin
+            SCLK_div <= SCLK_div+1;
+        end
+    end
 
+    always_ff @(posedge clk, negedge rst_n) begin   //Bits shifted counter
+        if(!rst_n) begin
+            bit_cntr <= 5'b0;
+        end
+        else if (init) begin
+            bit_cntr <= 5'b0;
+        end
+        else if (shft) begin
+            bit_cntr <= bit_cntr + 1;
+        end
+    end
 
 endmodule
