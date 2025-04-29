@@ -3,7 +3,6 @@
 module eBike_tb();
  
   // include or import tasks?
-  
 
   localparam FAST_SIM = 1;        // accelerate simulation by default
 
@@ -70,7 +69,6 @@ module eBike_tb();
                          .inertMISO(inertMISO),.inertINT(inertINT),
                          .cadence(cadence),.tgglMd(tgglMd),.TX(TX_RX),
                          .LED(LED));
-                         
                          
   ////////////////////////////////////////////////////////////
   // Instantiate UART_rcv or some other telemetry monitor? //

@@ -37,17 +37,18 @@ module SPI_mnrch(clk, rst_n, SS_n, SCLK, MOSI, MISO, snd, cmd, done, resp);
 			
 			// done state, transition when shift reg is full
 			DONE: if (full) begin
-				set_done = 1;
+				set_done = 1'b1;
 				nxt_state = IDLE;
+				ld_SCLK = 1'b1;
 			end
 
 			// default is IDLE state, wait for snd
 			default: if (snd) begin
-				init = 1;
+				init = 1'b1;
 				nxt_state = SHIFT;
 			end
 			else
-				ld_SCLK = 1;
+				ld_SCLK = 1'b1;
 		endcase
 	end
 
