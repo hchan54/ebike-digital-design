@@ -48,7 +48,7 @@ module PID(clk, rst_n, drv_mag, error, not_pedaling);
         if (cnt_full) begin
             if (not_pedaling) begin
                 integratorFlopin = 18'sd0;  // Reset integrator when not pedaling
-            end else begin
+            end else if(!(drv_mag == 12'hFFF && error > 0)) begin
                 // Calculate new integrator sum
                 logic signed [17:0] sum_i;
                 sum_i = integrator + error18;
@@ -60,11 +60,9 @@ module PID(clk, rst_n, drv_mag, error, not_pedaling);
                     integratorFlopin = 18'h1FFFF;
                 else
                     integratorFlopin = sum_i;
-            end
-        end else begin
+            end else 
             integratorFlopin = integrator;  // Hold value if tick is not active
         end
-
         // I_term is defined as the upper 12 bits (from bit 16 downto 5) of the integrator register
         I_term = integrator[16:5];
     end
