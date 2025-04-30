@@ -56,7 +56,7 @@ module sensorCondition(clk, rst_n, torque, cadence_raw, curr, incline, scale, ba
         // set the error equal to target_curr - avg_curr, sign extend to 13 bits
         // if battery < LOW_BATT_THRES, set error to 0
         // if not_pedaling, set error to 0
-        error = ((batt < LOW_BATT_THRES) || (not_pedaling)) ? 13'b0 : {target_curr[11], target_curr} - {avg_curr[11], avg_curr};
+        error = ((batt < LOW_BATT_THRES) || (not_pedaling)) ? 13'b0 : {1'b0, target_curr} - {1'b0, avg_curr};
 
     end
     
