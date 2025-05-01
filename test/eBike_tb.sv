@@ -72,39 +72,53 @@ module eBike_tb;
   );
 
   //----------------------------------------------------------------------//
-  // TEST SEQUENCE                                                         //
+  // TEST SEQUENCE                                                        //
   //----------------------------------------------------------------------//
   initial begin
     clk = 0;
     
-    //$display("11111");
+    $display("Starting test sequence...");
+    // set all the initial values
+    // reset dut just sets all the initial values
     reset_dut();
     drive_cadence(50_000);
     drive_torque (12'h700);
     repeat (500_000) @(posedge clk);
 
+    // tests when cadence increases
     test_cadence_increasing(50_000);
 
-    test_cadence_decreasing(400_000_000);
+    // tests when not pedaling is asserted, no cadence rise detected
+    test_not_pedaling();
 
+    // tests when torque increases
     drive_cadence(50_000);
     repeat (500_000) @(posedge clk);
     test_torque_increasing(12'hEEE);
 
+    // tests when torque decreases
     repeat (500_000) @(posedge clk);
     test_torque_decreasing(12'h001);
 
-    press_brake(12'h800);
+    // tests when we press the brake
+    press_brake(12'h000);
     repeat (500_000) @(posedge clk);
-    // test brake begin
-    $display("test brake begin");
     test_brake();
 
+    // stabalize the signals instead of waiting forever then test the uphill yaw rate
+    stablize_dut();
+    drive_cadence(50_000);
+    drive_torque (12'h700);
     repeat (500_000) @(posedge clk);
     test_yaw_uphill(15_000);
 
-    repeat (500_000) @(posedge clk);
+    // tests the downhill yaw rate
+    repeat (5_000_000) @(posedge clk);
     test_yaw_downhill(-3_000);
+
+    // tests when the battery is below threshold
+    repeat (10_000)@(posedge clk);
+    test_battery_below_thres(0);
 
     $display("All tests passed!");
     $stop;

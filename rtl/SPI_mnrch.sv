@@ -1,4 +1,7 @@
 `default_nettype none
+
+// this module is the serial peripheral interface responsible for communication between the 
+// inertial measurement unit and A2D interface 
 module spi_mnrch(clk, rst_n, SS_n, SCLK, MOSI, MISO, snd, cmd, done, resp);
     
     input logic clk, rst_n, MISO, snd;
@@ -6,17 +9,16 @@ module spi_mnrch(clk, rst_n, SS_n, SCLK, MOSI, MISO, snd, cmd, done, resp);
     output logic SS_n, SCLK, MOSI, done;
     output logic [15:0] resp;
 
-    logic [4:0] SCLK_div, bit_cntr; 
+    logic [4:0] SCLK_div, bit_cntr; // 
 
-    logic [15:0] shft_reg;  //Shift register
+    logic [15:0] shft_reg;  // shift register
 
-    logic init, shft, ld_SCLK, full, done16, set_done;   //SM signals
+    logic init, shft, ld_SCLK, full, done16, set_done;   // SM signals
      
-    typedef enum reg [1:0] {IDLE, SHFT, DONE} state_t;  //Machine has an idle state, a state for shifting all the bits, then the done state
-
+    typedef enum reg [1:0] {IDLE, SHFT, DONE} state_t;  // machine has an idle state, a state for shifting all the bits, then the done state
     state_t state, nxt_state;
 
-    always_ff @(posedge clk, negedge rst_n) begin   //State transition sequential logic
+    always_ff @(posedge clk, negedge rst_n) begin   // state transition sequential logic
         if(!rst_n) begin
             state <= IDLE;
         end

@@ -1,5 +1,6 @@
 `default_nettype none
 
+// this module saturates a input signal to a maximum 10 bit output value 
 module incline_sat(incline, incline_sat);
     input logic [12:0] incline;
     output logic[9:0] incline_sat;

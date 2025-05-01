@@ -1,11 +1,14 @@
 `default_nettype none
+
+// this module syncs the reset input 
 module reset_synch(RST_n, clk,rst_n);
 	input logic RST_n;
 	input logic clk;
 	output logic rst_n;
 
-	logic rst_ff;
+	logic rst_ff; // flop for the reset 
 
+	// double flop the reset 
 	always_ff @(negedge clk, negedge RST_n) begin
 		if (!RST_n) begin
 			rst_ff <= 1'b0;

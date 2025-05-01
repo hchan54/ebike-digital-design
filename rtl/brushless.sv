@@ -1,11 +1,14 @@
 `default_nettype none;
+
 // this module implements the drive and inspection for each coil in brushless motor
 module brushless(clk, rst_n, drv_mag, hallGrn, hallYlw, hallBlu, brake_n, PWM_synch, duty, selGrn, selYlw, selBlu);
+	
 	// declare input and output signals
 	input logic clk, rst_n, hallGrn, hallYlw, hallBlu, brake_n, PWM_synch;
 	input logic [11:0] drv_mag;
 	output logic [1:0] selGrn, selYlw, selBlu;
 	output logic [10:0] duty;
+
 	// declare intermediate signals
 	logic green1, green2, yellow1, yellow2, blue1, blue2;
 	logic synchGrn, synchYlw, synchBlu;
@@ -39,7 +42,7 @@ module brushless(clk, rst_n, drv_mag, hallGrn, hallYlw, hallBlu, brake_n, PWM_sy
 		// implicitly recycles value if PWM_synch is low
 	end
 	
-	// concatenate the bits for rotation state
+	// concatenate rotation state
 	assign rotation_state = {synchGrn,synchYlw,synchBlu};
 
 	// logic for assigning the coil drive

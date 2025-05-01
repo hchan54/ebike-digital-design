@@ -1,6 +1,8 @@
 `default_nettype none
-// this module implements the nonoverlap design
+
+// this module implements the nonoverlap design preventing a 
 module nonoverlap(clk, rst_n, highIn, lowIn, highOut, lowOut);
+	
 	// declare input and output signals
 	input logic clk;
 	input logic rst_n;
