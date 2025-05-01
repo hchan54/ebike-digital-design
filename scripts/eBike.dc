@@ -1,49 +1,39 @@
-# optimize ff to multibit ff, allow retiming
-set_app_var compile_enable_multibit true
-set_app_var compile_register_retiming true
-set_app_var hdlin_sv_enable_rtl_sa true
-
 # read files and set top level design
 read_file -format sverilog { PB_intf.sv telemetry.sv UART_tx.sv A2D_intf.sv brushless.sv cadence_filt.sv cadence_LU.sv cadence_meas.sv inert_intf.sv inertial_integrator.sv mtr_drv.sv nonoverlap.sv PB_release.sv PID.sv PWM.sv reset_synch.sv sensorCondition.sv SPI_mnrch.sv desiredDrive.sv incline_sat.sv eBike.sv }
 
-# build a generic netlist and bind to top level design
-elaborate eBike
-link
-current_design eBike
-
-# enable design-specific helpers
-set_structure true
-set_fix_multiple_port_nets -all -buffer_constants
+# set current design to eBike
+set current_design eBike
 
 # clock contraints: freq 400 Mhz
-create_clock  -name clk -period 2.5  [get_ports clk]
-set_clock_uncertainty 0.15  [get_clocks clk]
+create_clock -name "clk" -period 2.5  [get_ports clk]
+set_dont_touch_network [find port clk]
 
-# input and output delay constraints
-set nonclk_inps [remove_from_collection [all_inputs] [get_ports clk]]
+set prim_inputs [remove_from_collection [all_inputs] [find port clk]]
 
-set_input_delay  0.30 -clock clk $nonclk_inps
-set_driving_cell -lib_cell NAND2X2_LVT -library saed32lvt_tt0p85v25c $nonclk_inps
+# set clock uncertainty to 0.15 ns
+set_clock_uncertainty 0.15 [get_clocks clk]
+
+set_input_delay  0.30 -clock clk $prim_inputs
+set_driving_cell -lib_cell NAND2X2_LVT -library saed32lvt_tt0p85v25c $prim_inputs
+
+set_max_transition 0.20 [current_design]
 
 set_output_delay 0.50 -clock clk [all_outputs]
 set_load 50 [all_outputs] ;# 50 fF
 
-set_max_transition 0.20 [current_design]
 set_wire_load_model -name 16000 -library saed32lvt_tt0p85v25c
-
-compile -map_effort high -area_effort medium -gate_clock
+#
+compile -map_effort medium
+check_design
 
 # flatten and recompile design
 ungroup -all -flatten
-set_optimize_registers true
-compile -incremental -area_effort high
-
-# optimize netlist area
-optimize_netlist -area
 
 # fix any hold time violations
-set_fix_hold [get_clocks clk]
-compile -incremental -only_hold_time
+set_fix_hold clk
+compile -map_effort medium
+
+check_design
 
 # area and timing reports
 report_timing -delay max -nworst 5
@@ -51,4 +41,3 @@ report_timing -delay min -nworst 5
 report_area > ebike_area.txt
 
 write -format verilog -output ebike.vg
-write_sdc ebike.sdc
