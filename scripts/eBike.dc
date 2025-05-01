@@ -22,7 +22,8 @@ set_output_delay 0.50 -clock clk [all_outputs]
 set_load 50 [all_outputs] ;# 50 fF
 
 set_wire_load_model -name 16000 -library saed32lvt_tt0p85v25c
-#
+
+# first pass compile 
 compile -map_effort medium
 check_design
 
